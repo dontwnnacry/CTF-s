@@ -1,0 +1,71 @@
+https://labs.hackthebox.com/achievement/machine/3142066/394   (achievement) 
+
+Documentation:
+This report covers the Meow machine, the first entry in the Hack The Box (HTB) Starting Point series. While even simpler than Fawn, it establishes the fundamental workflow of "Scan, Identify, and Connect" using one of the oldest (and least secure) protocols in networking: Telnet.
+1. Executive Summary
+
+The Meow machine serves as an introductory exercise in identifying open ports and utilizing weak credential sets. The target was found to be running a Telnet service on port 23. Due to a critical misconfiguration, the root account was accessible without a password. This allowed for immediate administrative access to the system, leading to the retrieval of the flag file.
+2. Enumeration and Reconnaissance
+2.1. Connectivity Test
+
+Initial verification was performed using the ICMP protocol to ensure the target was reachable over the VPN tunnel.
+
+    Command: ping -c 4 <target_IP>
+
+2.2. Port Scanning
+
+An Nmap scan was conducted to identify active services. Since Meow is a Tier 0 machine, we focus on the most common ports.
+
+    Command: nmap -sV <target_IP>
+
+    Discovery: Port 23/tcp was identified as open, running a Telnet service.
+
+2.3. Documentation and Help
+
+To verify available options for scanning and connection tools, we can invoke the help menu from the terminal.
+
+    Command: nmap -? or telnet -?
+
+    Note: Using the -? flag is a quick way to view syntax without opening the full manual (man) page.
+
+3. Exploitation: Telnet Authentication Bypass
+
+Telnet is a terminal emulation protocol that, unlike SSH, transmits data in cleartext. On this specific target, the "root" user—the most powerful account on a Linux system—was not protected by a password.
+3.1. Connection Steps
+
+    Initiate Connection: telnet <target_IP>
+
+    Username: When prompted with meow login:, the username root was entered.
+
+    Password: When prompted for a password, the field was left blank and Enter was pressed.
+
+    Access Granted: The system provided a root shell prompt (root@meow:~#).
+
+3.2. Flag Retrieval
+
+With administrative privileges, the system was searched for the flag:
+
+    Command: ls (revealed flag.txt)
+
+    Command: cat flag.txt
+
+4. HTB Starting Point: Task Answers
+Task	Question	Answer
+1	What does the acronym VM stand for?	Virtual Machine
+2	What tool do we use to interact with the operating system via a command line?	terminal
+3	What service do we use to form our VPN connection into HTB?	openvpn
+4	What is the abbreviated name for a tunnel interface?	tun
+5	What tool do we use to test our connection to the target?	ping
+6	What is the name of the most common tool for scanning a target's open ports?	nmap
+7	What service is running on port 23?	telnet
+8	What username is able to log into the target over telnet with a blank password?	root
+9	Submit Flag	[Your Unique Flag String]
+5. Remediation Recommendations
+
+    Disable Telnet: Telnet is inherently insecure because it does not encrypt traffic. It should be disabled and replaced with SSH (Secure Shell).
+
+    Enforce Password Policies: No account, especially the root account, should ever be accessible with a blank password.
+
+    Restrict Root Login: Configure the system to prevent direct root logins over the network. Users should log in as a standard user and use sudo for administrative tasks.
+
+    Firewall Configuration: Port 23 should be closed at the network firewall level to prevent external discovery.
