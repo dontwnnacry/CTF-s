@@ -1,0 +1,78 @@
+https://labs.hackthebox.com/achievement/machine/3142066/402    (achievement)
+
+
+1. Introduction
+
+This lab focuses on the discovery and exploitation of a web application vulnerable to SQL Injection (SQLi). Specifically, it demonstrates how an attacker can bypass a login form by manipulating a backend SQL query using special characters and comments.
+2. Enumeration & Discovery
+2.1 Web Request Fundamentals
+
+Accessing a web resource follows a standard request-response cycle:
+
+    GET Request: The client (browser) requests a URL.
+
+    200 OK: The server finds the resource and sends the data.
+
+    302 Found: The server redirects the client to a new location.
+
+    404 Not Found: The resource does not exist.
+
+2.2 Directory Brute-Forcing
+
+To find hidden files or directories, automation tools like Gobuster are utilized.
+
+    Tool: Gobuster (written in Go/Golang).
+
+    Method: Brute-force using a wordlist (e.g., SecLists) to guess names like /admin, /backup, or /config.
+
+    Command Used: gobuster dir --url http://{target_IP} --wordlist /usr/share/wordlists/dirb/common.txt.
+
+    Result: While directory enumeration found standard folders, no immediate "low-hanging fruit" was discovered, shifting focus to the login page itself.
+
+3. Vulnerability Analysis: SQL Injection
+
+The application uses a PHP backend to verify credentials. The vulnerable logic is as follows:
+$sql="SELECT * FROM users WHERE username='$username' AND password='$password'";.
+3.1 The Flaw
+
+The code directly embeds user-specified $username and $password into the query without input validation or parameterized queries. This allows an attacker to use special characters:
+
+    Single Quote ('): Used to close the data string.
+
+    Comment (# or --): Used to ignore the remainder of the SQL statement.
+
+4. Exploitation (Authentication Bypass)
+
+By inputting a crafted string into the username field, we can alter the logic of the login check.
+
+    Payload: admin'#
+
+    Modified Query: SELECT * FROM users WHERE username='admin'#' AND password='...'
+
+Execution Steps:
+
+    Closing the String: The ' after admin terminates the username field.
+
+    Commenting Out Logic: The # symbol tells the SQL engine to ignore everything following it—specifically the AND password=... portion.
+
+    Bypass: The database only checks if a user named admin exists. Since it does, the $count variable returns 1, granting access without a valid password.
+
+5. Results
+
+Upon submitting the payload, the server processed the truncated query and redirected to the administrative dashboard.
+
+    First Word on Webpage: Congratulations
+
+    Outcome: Flag successfully retrieved.
+
+6. Conclusion & Mitigation
+
+SQLi remains a top threat (mapped to A03:2021-Injection) because it targets the core data of an organization.
+
+Recommended Fixes:
+
+    Parameterized Queries: Use prepared statements so input is never treated as executable code.
+
+    Input Validation: Sanitize inputs to block special characters like ', #, and --.
+
+    WAF Implementation: Deploy a Web Application Firewall to detect and block common injection patterns.
