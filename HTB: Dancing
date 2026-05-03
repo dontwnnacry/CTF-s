@@ -1,1 +1,73 @@
 https://labs.hackthebox.com/achievement/machine/3142066/395    (achivement) 
+
+
+1. Overview
+
+Dancing is a "Very Easy" Windows-based machine designed to introduce the SMB protocol. Unlike the previous machines (Meow and Fawn) which focused on Telnet and FTP, this lab demonstrates how Windows environments often share files and resources across a network.
+2. Enumeration
+2.1. Initial Scan
+
+The process began with an Nmap scan to identify open ports and the services running on the target.
+
+    Command: nmap -sV -p 445 <Target_IP>
+
+    Result: Port 445/tcp was identified as open, running a Microsoft Windows SMB service.
+
+2.2. Identifying Toolset
+
+To interact with the SMB service, the smbclient utility was used. To view the help menu and available flags for this tool before connecting, the following command was referenced:
+
+    Command: smbclient -? (or -h)
+
+2.3. Listing Shares
+
+Before attempting to log in, it was necessary to list the available shares on the host to find a point of entry.
+
+    Command: smbclient -L <Target_IP>
+
+    Discovery: The scan revealed four shares: ADMIN$, C$, IPC$, and WorkShares.
+
+3. Exploitation
+3.1. Anonymous Authentication
+
+The custom share, WorkShares, appeared to be a non-standard directory, suggesting a higher likelihood of misconfiguration. An attempt was made to connect without valid credentials (Anonymous Login).
+
+    Connection Command: smbclient //<Target_IP>/WorkShares
+
+    Password Prompt: When prompted, the field was left blank and Enter was pressed.
+
+    Access: The server accepted the empty password, providing an interactive smb: \> prompt.
+
+3.2. File Navigation and Exfiltration
+
+Standard directory navigation commands were used to locate the flag within the remote filesystem.
+
+    ls: Listed two directories: Amy.J and James.P.
+
+    cd James.P: Navigated into the folder for user James.
+
+    ls: Confirmed the existence of flag.txt.
+
+    get flag.txt: Downloaded the flag file to the local Kali machine.
+
+    cd ..: Used to move back up the directory tree during navigation.
+
+4. HTB Task Answers
+Task	Question	Answer
+1	What does the 3-letter acronym SMB stand for?	Server Message Block
+2	What port does SMB use to operate at in modern Windows?	445
+3	What is the service name for port 445 that we see in our nmap scan?	microsoft-ds
+4	What is the 'tool' we use to enumerate and interact with SMB shares?	smbclient
+5	What is the flag we use with the SMB tool to 'list' the contents of the share?	-L
+6	How many shares are there on the target?	4
+7	What is the name of the share we are able to access with a blank password?	WorkShares
+8	What is the command we can use within the SMB shell to download files?	get
+5. Remediation
+
+To secure this machine, the following steps are recommended:
+
+    Disable Anonymous Access: Configure the SMB server to require valid, authenticated credentials for all shares.
+
+    Principle of Least Privilege: Ensure that users like Amy and James only have access to their specific directories and that sensitive files are not stored in publicly accessible shares.
+
+    Firewalling: Restrict access to port 445 to trusted IP addresses only.</Target_IP></Target_IP></Target_IP>
