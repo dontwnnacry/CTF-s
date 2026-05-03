@@ -1,1 +1,73 @@
 https://labs.hackthebox.com/achievement/machine/3142066/472    (achievement) 
+
+
+This report documents the enumeration and exploitation of the Redeemer machine on Hack The Box, focusing on the misconfiguration of a Redis (REmote DIctionary Server) instance.
+1. Introduction to Redis
+
+Redis is an open-source, NoSQL in-memory data store often used as a database, cache, or message broker. Because it operates primarily in the system's RAM rather than on a disk, it offers extremely efficient response times for frequently requested data. Data in Redis is stored in a dictionary format using key-value pairs.
+2. Enumeration Phase
+2.1. Network Scanning
+
+Initial reconnaissance was performed using Nmap to identify active services on the target.
+
+    Command: nmap -sV -p- <Target_IP>
+
+    Result: The scan revealed port 6379 as open, which is the default port for a Redis server.
+
+2.2. Tooling and Help
+
+The redis-cli utility was used to interact with the remote server. To understand available options, the help flag was referenced.
+
+    Installation: sudo apt install redis-tools
+
+    Help Menu: redis-cli --help
+
+    Key Flag: The -h switch is used to specify the target hostname or IP address.
+
+3. Exploitation and Data Extraction
+3.1. Establishing a Connection
+
+A connection was established directly to the target Redis instance.
+
+    Command: redis-cli -h <Target_IP>
+
+    Authentication: The server was improperly configured, allowing a successful connection without a password.
+
+3.2. Server Analysis
+
+Once connected, the info command was executed to retrieve server statistics and find where data was stored.
+
+    Findings: Under the # Keyspace section, the output confirmed that a database existed at index 0 containing active keys.
+
+3.3. Flag Retrieval
+
+The following interactive commands were used to navigate the database and exfiltrate the flag:
+
+    Select Database: select 0 was used to switch to the default logical database.
+
+    List Keys: keys * was executed to display every key name present in the database.
+
+    Read Value: The get command followed by the identified key name (e.g., get flag) was used to display the final flag value.
+
+4. HTB Task Reference
+Task	Question	Answer
+1	What port is open on the target?	6379
+2	What service is running on the open port?	redis
+3	What type of database is Redis?	In-memory Database
+4	Which utility is used to connect to the Redis server?	redis-cli
+5	Which flag is used with the Redis utility to specify the hostname?	-h
+6	What command provides statistics about the Redis server?	info
+7	What is the version of the Redis server being used?	5.0.7
+8	Which section of the info command result shows database info?	Keyspace
+9	What command is used to select the desired database?	select
+10	How many keys are present inside the database with index 0?	4
+11	Which command is used to list all the keys in the database?	**keys ***
+5. Remediation
+
+To secure the Redis installation, it is recommended to:
+
+    Enable Authentication: Set a strong password in the redis.conf file using the requirepass directive.
+
+    Bind to Localhost: Ensure Redis only listens on 127.0.0.1 unless remote access is strictly necessary.
+
+    Rename Dangerous Commands: Use the rename-command configuration to hide commands like CONFIG, KEYS, and FLUSHALL.</Target_IP></Target_IP>
