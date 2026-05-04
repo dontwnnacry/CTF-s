@@ -1,0 +1,28 @@
+https://labs.hackthebox.com/achievement/machine/3142066/403    (achievement)
+
+
+1. Executive Summary
+
+The target system was found to be running an exposed MariaDB database service. Due to a common deployment misconfiguration, the database allowed administrative (root) access without requiring a password. By directly interacting with the service via the command-line interface (CLI), internal tables were enumerated, leading to the successful retrieval of a hidden flag.
+2. Technical Enumeration
+
+An initial scan using nmap identified a single points of entry:
+
+    Port 3306/TCP: Running MySQL 5.5.5-10.3.27-MariaDB.
+
+MySQL and MariaDB are relational database management systems (RDBMS) used to store organized data in tables, rows, and columns.
+3. Exploitation & Foothold
+
+Access was gained by leveraging a passwordless login vulnerability on the root account. Using the MySQL CLI client, the following command was used to establish a connection:
+mysql -h <target_ip> -u root
+4. Database Navigation and Data Extraction
+
+Once connected, the database was navigated using standard SQL queries. It is critical to note that every command in the MySQL shell must be terminated with a semicolon (;) to execute.
+Step	Command	Result
+Enumerate Databases	SHOW databases;	Identified a non-standard database named htb.
+Select Database	USE htb;	Switched the active context to the htb database.
+Enumerate Tables	SHOW tables;	Found two tables: config and users.
+Extract Data	SELECT * FROM config;	Displayed all rows, revealing the system flag.
+5. Conclusion
+
+The vulnerability in this system stemmed from an intentional or accidental misconfiguration where the root user was left without a password during the deployment stage. This allowed an attacker to bypass the web application entirely and "talk" directly to the SQL service, gaining full access to all stored data.
