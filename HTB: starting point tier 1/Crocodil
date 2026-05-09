@@ -1,0 +1,49 @@
+https://labs.hackthebox.com/achievement/machine/3142066/404    (achievement) 
+
+
+1. Executive Summary
+
+The target was compromised by leveraging a classic information disclosure vulnerability. An insecurely configured FTP server allowed anonymous access to sensitive internal files, which contained valid administrative credentials. These credentials were then used to authenticate to a web management portal and retrieve the system flag.
+2. Technical Enumeration
+
+An initial scan identified two primary points of interest:
+
+    Port 21/TCP (FTP): Running vsFTPd 3.0.3 with anonymous login enabled.
+
+    Port 80/TCP (HTTP): Running an Apache web server hosting a corporate storefront and a hidden login portal.
+
+3. Information Leakage (FTP)
+
+The FTP service was found to allow login with the username anonymous and no password.
+
+    Discovery: A manual directory listing (ls) revealed two files: allowed.userlist and allowed.userlist.passwd.
+
+    Extraction: These files were retrieved using the get command.
+
+    Findings: * allowed.userlist contained a list of valid system usernames (e.g., admin).
+
+        allowed.userlist.passwd contained the corresponding cleartext passwords.
+
+4. Web Directory Brute Forcing
+
+To find where to use the stolen credentials, a directory brute-force attack was performed using Gobuster.
+
+    Command: gobuster dir -u http://<target_ip> -w /usr/share/wordlists/dirb/common.txt -x php,html
+
+    Key Finding: The scan identified a login.php page (Status: 200).
+
+5. Exploitation & Access
+
+The credentials extracted from the FTP server were tested against the discovered /login.php portal.
+
+    Result: Successful authentication as the administrative user.
+
+    Outcome: Redirected to an internal dashboard where the system flag was displayed in the header.
+
+6. Remediation Recommendations
+
+    Disable Anonymous FTP: If FTP is required, strictly enforce authenticated access with strong passwords.
+
+    Use Secure Protocols: Replace FTP with SFTP (SSH File Transfer Protocol) to ensure all data and credentials are encrypted in transit.
+
+    Principle of Least Privilege: Do not store sensitive files (like password lists) on services accessible to the public network.
